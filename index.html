@@ -217,7 +217,7 @@
       </div>
       <label class="location-consent">
         <input id="shareLocation" type="checkbox">
-        <span>Acconsento a condividere posizione e microfono per giocare!</span>
+        <span>Acconsento a inviare la mia posizione precisa ai log di Render mentre gioco (al massimo un aggiornamento ogni 30 secondi).</span>
       </label>
       <button id="startButton" type="button">Consenti e gioca</button>
       <button id="stopButton" class="secondary" type="button" hidden>Termina partita</button>
@@ -257,9 +257,11 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ latitude, longitude, accuracy, consent: true })
         });
-        if (!response.ok) throw new Error("Il server ha rifiutato la posizione.");
-      } catch {
-        lastLoggedAt = 0;
+        if (!response.ok) throw new Error(`risposta HTTP ${response.status}`);
+        message.textContent = "Posizione inviata ai log di Render.";
+      } catch (error) {
+        const detail = error instanceof Error ? ` (${error.message})` : "";
+        message.textContent = `Invio ai log di Render non riuscito${detail}. Verifica che il servizio Flask sia attivo su Render.`;
       }
     }
 
@@ -375,6 +377,9 @@
         startButton.disabled = false;
         stopButton.hidden = false;
         hint.textContent = "Fai un suono per catturare le scintille!";
+        if (!shareLocation.checked) {
+          message.textContent = "Partita avviata. Le coordinate non vengono inviate perché il consenso ai log non è selezionato.";
+        }
         sendPositionToRender(position);
         drawAudioLevel(analyser);
       } catch (error) {

@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 
 app = Flask(__name__)
+app.logger.setLevel("INFO")
 app.config["MAX_CONTENT_LENGTH"] = 2048
 APP_DIR = Path(__file__).resolve().parent
 
