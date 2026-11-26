@@ -282,9 +282,12 @@
     }
 
     function permissionError(error) {
-      if (error && error.code === 1) return "Permesso negato. Per giocare, abilita posizione e microfono nelle impostazioni del browser e riprova.";
+      if (error && error.code === 1) return "Permesso di posizione negato. Abilita la posizione nelle impostazioni del browser e riprova.";
       if (error && error.code === 2) return "Posizione non disponibile. Controlla il GPS o la connessione e riprova.";
       if (error && error.code === 3) return "La richiesta di posizione è scaduta. Riprova in un luogo con segnale.";
+      if (error && error.name === "NotAllowedError") return "Permesso microfono negato. Abilita il microfono nelle impostazioni del browser e riprova.";
+      if (error && error.name === "NotFoundError") return "Microfono non trovato. Collega o abilita un microfono e riprova.";
+      if (error && error.name === "NotReadableError") return "Microfono non disponibile. Potrebbe essere già in uso da un'altra applicazione.";
       return error && error.message ? error.message : "Impossibile avviare il gioco. Controlla i permessi del browser.";
     }
 
@@ -320,31 +323,50 @@
         if (!window.isSecureContext) {
           throw new Error("Per proteggere i tuoi dati, apri questa pagina su HTTPS o localhost.");
         }
-        if (!navigator.geolocation || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error("Questo browser non supporta la posizione o il microfono richiesti.");
+        if (!navigator.geolocation) {
+          throw new Error("Questo browser non supporta la geolocalizzazione, necessaria per giocare.");
         }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Questo browser non supporta l'accesso al microfono.");
+        }
+
+        hint.textContent = "Attendi il permesso e il rilevamento della posizione…";
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error("Questo browser non supporta l'elaborazione audio necessaria al gioco.");
+        audioContext = new AudioContextClass();
+        await audioContext.resume();
 
         const position = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: true,
             timeout: 20000,
-            maximumAge: 0
+            maximumAge: 30000
           });
         });
+
+        hint.textContent = "Attendi il permesso del microfono…";
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) throw new Error("Questo browser non supporta l'elaborazione audio necessaria al gioco.");
-        audioContext = new AudioContextClass();
-        await audioContext.resume();
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 1024;
         audioContext.createMediaStreamSource(stream).connect(analyser);
 
-        watchId = navigator.geolocation.watchPosition(
-          sendPositionToRender,
-          (error) => { message.textContent = `Aggiornamento posizione: ${permissionError(error)}`; },
-          { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }
-        );
+        if (navigator.geolocation) {
+          watchId = navigator.geolocation.watchPosition(
+            sendPositionToRender,
+            (error) => {
+              if (error.code === 1) {
+                stopGame();
+                message.textContent = permissionError(error);
+                hint.textContent = "La posizione è necessaria per giocare.";
+                return;
+              }
+              message.textContent = `La partita continua, ma la posizione non è disponibile: ${permissionError(error)}`;
+            },
+            { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }
+          );
+        } else {
+          message.textContent = "La partita continua, ma questo browser non supporta la geolocalizzazione.";
+        }
 
         score = 0;
         scoreElement.textContent = "0";
@@ -358,7 +380,7 @@
       } catch (error) {
         stopGame();
         message.textContent = permissionError(error);
-        hint.textContent = "";
+        hint.textContent = "Per giocare servono la posizione e il microfono. Riprova dopo averli abilitati.";
       }
     }
 
